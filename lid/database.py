@@ -12,7 +12,6 @@ import re
 import itertools
 import numpy as np
 import logging
-import elasticsearch
 
 
 #Constants
@@ -64,7 +63,6 @@ class ElasticConnection():
             bulk_data.append(op_dict)
             bulk_data.append(json_obj)
             if len(bulk_data) == 1000:
-                print i
                 self.es_connection.bulk(index=STATE_BILL_INDEX, body=bulk_data, timeout=300)
 
                 del bulk_data
@@ -108,7 +106,6 @@ class ElasticConnection():
             bulk_data.append(op_dict)
             bulk_data.append(json_obj)
         
-        print i
         self.es_connection.bulk(index=EVALUATION_INDEX_ALL_BILLS, body=bulk_data, timeout=300)
 
         #load in rest of state bill data
@@ -130,7 +127,6 @@ class ElasticConnection():
             bulk_data.append(op_dict)
             bulk_data.append(json_obj)
             if len(bulk_data) == 1000:
-                print i
                 self.es_connection.bulk(index=EVALUATION_INDEX_ALL_BILLS, body=bulk_data, timeout=300)
 
                 del bulk_data
@@ -170,7 +166,6 @@ class ElasticConnection():
             bulk_data.append(op_dict)
             bulk_data.append(json_obj)
         
-        print i
         self.es_connection.bulk(index=EVALUATION_INDEX, body=bulk_data, timeout=300)
 
     def get_all_doc_ids(self,index):
@@ -188,44 +183,31 @@ class ElasticConnection():
             {
                 "query": {
                     "more_like_this": {
-                        "fields": [
-                            "%s"
-                        ],
-                        "like_text": "",
-                        "max_query_terms": 25,
-                        "min_term_freq": 1,
-                        "min_doc_freq": 2,
-                        "minimum_should_match": 1
+                        "fields": ["section_txt"],
+                        "like": "",
+                        "min_doc_freq": 2
                     }
                 }
             }
-        """ % (fields)
+        """
         json_query = json.loads(json_query)
-        json_query['query']['more_like_this']['like_text'] = query
+        json_query['query']['more_like_this']['like'] = query
 
+        results = self.es_connection.search(index = index ,body = json_query, size = num_results)
 
-        results = self.es_connection.search(index = index,body = json_query,
-                fields = fields,
-                size = num_results )
         results = results['hits']['hits']
         result_docs = []
-        for res in results:
+        for idx, res in enumerate(results):
             doc = {}
-            for f in res['fields']:
-                doc[f] = res['fields'][f][0]
-            #doc['state'] = res['fields']['state'][0]
+
             doc['score'] = res['_score']
             doc['id'] = res['_id']
-            doc['state'] = doc['id'][0:2]
+            doc['sec_id'] = res['_source']['section_id']
+            doc['sec_txt'] = res['_source']['section_txt']
 
+            # print("#%d: sec_id is %s with score %f" % (idx+1, doc['sec_id'], doc['score']))
+            result_docs.append(doc)
 
-            #if applicable, only return docs that are from different states
-            if return_fields == ['state']:
-                if doc['state'] != state_id:
-                    result_docs.append(doc)
-            else:
-                result_docs.append(doc)
-        
         return result_docs
 
     def similar_doc_query_for_testing_lucene(self,query, match_group, state_id = None,
@@ -318,7 +300,7 @@ class ElasticConnection():
         start = 0
         bad_count = 0
         while start <= total:
-            print start
+            print (start)
             body = body_gen(start,step)
             bills = es.search(index="state_bills", body=body)
             bill_list = bills['hits']['hits']
@@ -396,10 +378,10 @@ def query_time_speed_test():
             temp_times.append(time.time()-t1)
         
         avg_times.append(np.mean(temp_times))
-        print "query size {0} , avg time (s) {1}".format(query_size,np.mean(temp_times))
+        print ("query size {0} , avg time (s) {1}".format(query_size,np.mean(temp_times)))
 
     for i in avg_times:
-        print i
+        print (i)
 
 
 def parallel_requests_test():
@@ -418,11 +400,11 @@ def parallel_requests_test():
     for test_query in test_queries:
         ec.similar_doc_query(test_query)
 
-    print "serial time:  ",time.time()-serial_time
+    print ("serial time:  ",time.time()-serial_time)
     pool = Pool(processes=7)
     parallel_time = time.time()
     pool.map(parallel_query,test_queries)
-    print "parallel time:  ",time.time()-parallel_time
+    print ("parallel time:  ",time.time()-parallel_time)
     exit()
 
 
@@ -452,7 +434,7 @@ def main():
         id_file.close()    
 
     else:
-        print args
+        print (args)
 
 def create_evaluation_index():
     state_bill_path = '/mnt/elasticsearch/dssg/extracted_data/extracted_bills.json'

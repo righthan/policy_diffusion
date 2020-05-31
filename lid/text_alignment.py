@@ -9,8 +9,6 @@ import itertools
 import abc
 
 
-
-
 #TODO: use alignment algorithm
 #repsrents two aligned pieces of text
 class Alignment(object):
@@ -119,7 +117,7 @@ class LocalAligner(Aligner):
         gap_score: gap score for Smith-Waterman algorithm
     '''
 
-    def __init__(self,match_score = 3,mismatch_score = -1,gap_score = -2):
+    def __init__(self,match_score = 2,mismatch_score = -1,gap_score = -0.5):
         '''
         inits LocalAligner with match_score, mismatch_score, gap_score
         '''
@@ -167,7 +165,6 @@ class LocalAligner(Aligner):
 
                 score_matrix, pointer_matrix = self._compute_matrix(a_ints, b_ints, self.match_score,
                                                                     self.mismatch_score, self.gap_score)
-
                 l, r, score, align_index = self._backtrace(a_ints, b_ints, score_matrix, pointer_matrix)
 
                 reverse_word_map = {v:k for k,v in word_map.items()}
@@ -333,7 +330,7 @@ class AffineLocalAligner(LocalAligner):
         every_subsequent_gap_in_sequence_of_gaps = gap_extend
     '''
 
-    def __init__(self, match_score=3, mismatch_score=-1, gap_start=-3, gap_extend = -.5):
+    def __init__(self, match_score=2, mismatch_score=-1, gap_start=-5, gap_extend = -.5):
         '''
         inits AffineLocalAligner with match_score, mismatch_score, gap_start, and gap_extend
         '''

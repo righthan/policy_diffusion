@@ -1,6 +1,14 @@
 jinja2==2.7.3
-elasticsearch==1.5
-enum34==1.0.4
+elasticsearch
+enum34
 cherrypy==3.8.0
-numba==0.17.0
+numpy==1.11.0
+numba==0.34.0
 ujson==1.33
+matplotlib
+llvmlite
+alignment
+funcsigs
+nltk
+pandas
+tqdm

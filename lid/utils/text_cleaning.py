@@ -13,7 +13,7 @@ import nltk
 #custom modules
 #from database import ElasticConnection
 
-def clean_text(text, lower = True):
+def clean_text(text):
     '''
     variables:
         text: string corresponding to text of bill
@@ -24,12 +24,20 @@ def clean_text(text, lower = True):
     decription:
         clean text 
     '''
-    #make text lowercase
-    if lower == True:
-        text = text.lower()
    
+    # lower case
+    text = text.lower()
+    defined_punctuation = u'!"#$%&()*+, -/:;<= >?@[\] ^ _`{ | }~'
+    translator = string.maketrans(defined_punctuation, ' '*len(defined_punctuation))
+    text = str(text).translate(translator)
+    # defined_punctuation = '.\''
+    # translator = string.maketrans('', '', defined_punctuation)
+    # text = text.translate(translator)
+    text = ' '.join(text.split())
+
     text = re.sub('\n[ ]*[0-9]+', '', text)
-    text = re.sub('[ ]{2,}', u' ', text) 
+    text = re.sub('[ ]{2,}', u' ', text)
+    text = re.sub('[.\']', '', text)
 
     #parse by line
     text_list =  text.splitlines()
@@ -50,10 +58,6 @@ def clean_text(text, lower = True):
         line = re.sub( '\s+', u' ', line)
         ntext_list.append(line)
     return (string.join(ntext_list, '\n'))
- 
- 
-
-
    
 
 def split_to_sections(cleantext,state):
@@ -150,45 +154,27 @@ def delete_numbers_in_lines (chunked_list):
     return chunked_list
 
 
-
 #Delete multiple new lines for each section
-def delete_lines (chunked_list):
+def delete_lines (chunk):
     '''
     description: deletes multiple lines and spaces for each section
     '''
-    chunked_list = [re.sub( '\s+', ' ', x) for x in chunked_list]
-    return chunked_list
+    return re.sub( '\s+', ' ', chunk)
         
-
 
 def clean_document(doc_text,doc_type = "text",split_to_section = False,**kwargs):
     """text -- document text
        doc_type --- the type of the document ( "state_bill", "model_legislation", "None")    """
-    
-    if doc_type == "state_bill":
-        doc_text = clean_text(doc_text)
-        doc_text_sections = split_to_sections(doc_text,kwargs['state_id'])
-        doc_text_sections = delete_empty_sections(doc_text_sections)
-        if kwargs['state_id'] in ['or','ok','ne','pa']:
-            doc_text_sections = delete_numbers_in_lines(doc_text_sections)
-        doc_text_sections = delete_lines(doc_text_sections)
-    
-    elif doc_type == "model_legislation":
-        doc_text = clean_text(doc_text)
-        doc_text_sections = doc_text.split('\nsection')
-        doc_text_sections = delete_empty_sections(doc_text_sections)
-        doc_text_sections = delete_lines(doc_text_sections)
         
-    elif doc_type == "text":
-        doc_text = clean_text(doc_text)
-        doc_text_sections = doc_text.split('\n')
-        doc_text_sections = delete_empty_sections(doc_text_sections)
-        doc_text_sections = delete_lines(doc_text_sections)
+    doc_text = clean_text(doc_text)
+    doc_text = delete_lines(doc_text)
+    return "".join(doc_text)
     
-    if split_to_section == True:
-        return doc_text_sections
-    elif split_to_section == False:
-        return [" ".join(doc_text_sections)]
+    # if split_to_section == True:
+    #     return doc_text
+    # elif split_to_section == False:
+    #     return [" ".join(doc_text)]
+
 
 #delete boiler plate present in all alec exposed bills after "effective date"
 def delete_boiler_plate_alec_exposed (chunked_list):
@@ -196,8 +182,8 @@ def delete_boiler_plate_alec_exposed (chunked_list):
     chunked_list = chunked_list[1:]
     return chunked_list
 
-#good example is test_clean_text_for_alignment('va')
 
+#good example is test_clean_text_for_alignment('va')
 def test_clean_text(state):
    es = Elasticsearch(['54.203.12.145:9200', '54.203.12.145:9200'], timeout=300)
    match = es.search(index="state_bills", body={"query": {"match": {'state': state}}})
@@ -205,10 +191,10 @@ def test_clean_text(state):
    cleaned_doc = clean_document(state_text,doc_type = "state_bill",state_id = "mi",split_to_section = False)
    return cleaned_doc
 
+
 def main():
-    #Get data from elasticsearch to test
-    
-    print test_clean_text("mi")
+    #Get data from elasticsearch to test    
+    print (test_clean_text("mi"))
 
 if __name__ == "__main__":
     main()
